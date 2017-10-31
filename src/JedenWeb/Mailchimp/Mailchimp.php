@@ -63,6 +63,7 @@ class Mailchimp
 
 			return $response && $response->getCode() === 200;
 		} else if ($status !== self::STATUS_SUBSCRIBED || count($mergeFields) > 0) {
+		    //TODO: update only if merge fields change
 			unset($data['email_address']);
 
 			$response = $this->call(
@@ -75,30 +76,49 @@ class Mailchimp
 		}
 	}
 
-	/**
-	 * @param string $email
-	 * @param string|NULL $listId
-	 *
-	 * @return bool|NULL
-	 */
-	public function unsubscribe($email, $listId = NULL)
+    /**
+     * @param string $email
+     * @param string|NULL $listId
+     * @param array $mergeFields
+     *
+     * @return bool|NULL
+     */
+	public function unsubscribe($email, $listId = NULL, $mergeFields = [])
 	{
 		$listId = $listId ?: $this->listId;
 		$status = $this->getStatus($email, $listId);
-		$data = ['email_address' => $email, 'status' => self::STATUS_UNSUBSCRIBED];
 
-		if ($status === FALSE) {	// not in Mailchimp at all, add new entry as ubsubscribed
+		$data = ['email_address' => $email, 'status' => self::STATUS_UNSUBSCRIBED];
+        if ($mergeFields) {
+            $data['merge_fields'] = $mergeFields;
+        }
+
+		if ($status === FALSE) {	// not in Mailchimp at all, add new entry as unsubscribed
 			$response = $this->call(Request::POST, "/lists/$listId/members", $data);
 
 			return $response && $response->getCode() === 200;
-		} else if ($status !== self::STATUS_UNSUBSCRIBED) {	// only update is user is not in the ubsubscribed status
-			$response = $this->call(Request::PATCH, "/lists/$listId/members/".md5($email), [
-				'status' => self::STATUS_UNSUBSCRIBED,
-			]);
+		} else if ($status !== self::STATUS_UNSUBSCRIBED || $mergeFields) {
+            unset($data['email_address']);
+			$response = $this->call(Request::PATCH, "/lists/$listId/members/".md5($email), $data);
 
 			return $response && $response->getCode() === 200;
 		}
 	}
+
+    /**
+     * @param $email
+     * @return FALSE|\stdClass
+     */
+	public function getMember($email)
+    {
+        $response = $this->call(Request::GET, "/lists/{$this->listId}/members/".md5($email));
+
+        if (!$response || $response->getCode() === 404) {
+            return FALSE;
+        }
+
+        return Json::decode($response->getResponse());
+    }
 
 
 	/**
