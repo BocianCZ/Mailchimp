@@ -45,24 +45,31 @@ class Mailchimp
 	/**
 	 * @param string $email
 	 * @param string|NULL $listId
-	 *
+	 * @param array $mergeFields
 	 * @return bool|NULL
 	 */
-	public function subscribe($email, $listId = NULL)
+	public function subscribe($email, $listId = NULL, $mergeFields = [])
 	{
 		$listId = $listId ?: $this->listId;
 		$status = $this->getStatus($email, $listId);
 
 		$data = ['email_address' => $email, 'status' => self::STATUS_SUBSCRIBED];
+		if ($mergeFields) {
+			$data['merge_fields'] = $mergeFields;
+		}
 
 		if ($status === FALSE) {
 			$response = $this->call(Request::POST, "/lists/$listId/members", $data);
 
 			return $response && $response->getCode() === 200;
-		} else if ($status !== self::STATUS_SUBSCRIBED) {
-			$response = $this->call(Request::PATCH, "/lists/$listId/members/".md5($email), [
-				'status' => self::STATUS_SUBSCRIBED,
-			]);
+		} else if ($status !== self::STATUS_SUBSCRIBED || count($mergeFields) > 0) {
+			unset($data['email_address']);
+
+			$response = $this->call(
+				Request::PATCH,
+				"/lists/$listId/members/".md5($email),
+				$data
+			);
 
 			return $response && $response->getCode() === 200;
 		}
