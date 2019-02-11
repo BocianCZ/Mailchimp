@@ -27,15 +27,18 @@ class Mailchimp
 	/** @var string */
 	private $listId;
 
+	private $marketingPermissionId;
+
 	/** @var CurlSender */
 	private $sender;
 
 
-	public function __construct($url, $apiKey, $listId, CurlSender $sender)
+	public function __construct($url, $apiKey, $listId, $marketingPermissionId = null, CurlSender $sender)
 	{
 		$this->url = rtrim($url, '/');
 		$this->apiKey = $apiKey;
 		$this->listId = $listId;
+		$this->marketingPermissionId = $marketingPermissionId;
 		$this->sender = $sender;
 
 		$this->sender->headers['Content-Type'] = 'application/json';
@@ -53,14 +56,26 @@ class Mailchimp
 		$listId = $listId ?: $this->listId;
 		$status = $this->getStatus($email, $listId);
 
-		$data = ['email_address' => $email, 'status' => self::STATUS_SUBSCRIBED];
+		$data = [
+		    'email_address' => $email,
+            'status' => self::STATUS_SUBSCRIBED
+        ];
+
+		if ($this->marketingPermissionId) {
+		    $data['marketing_permissions'] = [
+                [
+                    'marketing_permission_id' => $this->marketingPermissionId,
+                    'enabled' => true,
+                ]
+            ];
+        }
+
 		if ($mergeFields) {
 			$data['merge_fields'] = $mergeFields;
 		}
 
 		if ($status === FALSE) {
 			$response = $this->call(Request::POST, "/lists/$listId/members", $data);
-
 			return $response && $response->getCode() === 200;
 		} else if ($status !== self::STATUS_SUBSCRIBED || count($mergeFields) > 0) {
 		    //TODO: update only if merge fields change

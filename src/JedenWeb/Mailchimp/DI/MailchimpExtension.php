@@ -24,7 +24,15 @@ class MailchimpExtension extends CompilerExtension
 		$container = $this->getContainerBuilder();
 
 		$container->addDefinition($this->prefix('mailchimp'))
-			->setClass('JedenWeb\Mailchimp\Mailchimp', [$config['url'], $config['apiKey'], $config['listId']]);
+			->setClass(
+			    'JedenWeb\Mailchimp\Mailchimp',
+                [
+                    $config['url'],
+                    $config['apiKey'],
+                    $config['listId'],
+                    $config['marketingPermissionId']
+                ]
+            );
 	}
 
 
